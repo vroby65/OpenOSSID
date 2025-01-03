@@ -1,0 +1,446 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>OpenOSSID</title>
+    <link rel="icon" href="https://cdn-icons-png.flaticon.com/128/3273/3273518.png" type="image/png">
+    <style>
+        body {
+            margin: 0;
+            font-family: Arial, sans-serif;
+            background-color: #1e1e1e;
+            color: #ffffff;
+        }
+        .toolbar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 5px;
+            background-color: #333;
+        }
+        .toolbar h1 {
+            margin: 0;
+            font-size: 1.5em;
+        }
+        .toolbar button {
+            background-color: #555;
+            color: white;
+            border: none;
+            padding: 5px 10px;
+            cursor: pointer;
+        }
+        .toolbar button:hover {
+            background-color: #777;
+        }
+        .container {
+            display: flex;
+            height: calc(100vh - 50px);
+        }
+        .treeview {
+            width: 200px;
+            background-color: #222;
+            overflow-y: auto;
+            padding: 10px;
+            position: relative;
+        }
+        .treeview ul {
+            list-style-type: none;
+            padding: 0;
+            margin-left: 10px;
+        }
+        .treeview li {
+            cursor: pointer;
+            padding: 5px;
+            position: relative;
+            margin-left: 15px;
+        }
+        .treeview li.selected {
+            background-color: #444;
+        }
+        .treeview li .toggle {
+            position: absolute;
+            left: -15px;
+            cursor: pointer;
+        }
+        .treeview li ul {
+            margin-left: 20px;
+            display: none;
+        }
+        .treeview li.expanded > ul {
+            display: block;
+        }
+        .content {
+            flex: 1;
+            padding: 10px;
+            background-color: #1e1e1e;
+            overflow-y: auto;
+        }
+        .textarea {
+            width: 100%;
+            height: calc(100% - 20px);
+            background-color: #333;
+            color: white;
+            border: none;
+            padding: 10px;
+            font-family: monospace;
+        }
+        .context-menu {
+            position: absolute;
+            background-color: #333;
+            border: 1px solid #555;
+            padding: 5px;
+            z-index: 1000;
+        }
+        .context-menu div {
+            padding: 5px;
+            cursor: pointer;
+        }
+        .context-menu div:hover {
+            background-color: #444;
+        }
+                .markdown-body {
+            max-width: 800px;
+            margin: auto;
+            padding: 20px;
+            background-color: #161b22;
+            border-radius: 8px;
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.5);
+            color: #c9d1d9;
+        }
+        #toggleTree {
+            margin-right: 10px;
+            background-color: #555;
+            color: white;
+            border: none;
+            padding: 5px 10px;
+            cursor: pointer;
+        }
+
+        #toggleTree:hover {
+            background-color: #777;
+        }
+
+        #resizer {
+            position: absolute;
+            right: 0;
+            top: 0;
+            bottom: 0;
+            width: 5px;
+            cursor: col-resize;
+            background-color: #444;
+        }
+        textarea {
+            width: 100%;
+            height: 150px;
+            padding: 10px;
+            margin-bottom: 20px;
+            border: 1px solid #30363d;
+            border-radius: 5px;
+            background-color: #161b22;
+            color: #c9d1d9;
+        }
+        textarea:focus {
+            outline: none;
+            border-color: #58a6ff;
+        }
+        pre {
+            background-color: rgba(36, 41, 46, 0.5) !important; /* Sovrascrive eventuali stili di default */
+            border-radius: 6px;
+            padding: 10px;
+            overflow-x: auto;
+            color: #c9d1d9; /* Assicura un testo leggibile */
+        }
+        pre code {
+            background-color: transparent !important; /* Evita conflitti con lo sfondo del <pre> */
+            display: block; /* Assicura il layout corretto */
+        }
+        code {
+            background-color: rgba(36, 41, 46, 0.5); /* Sfondo semitrasparente per codice inline */
+            padding: 2px 4px;
+            border-radius: 3px;
+        }
+        a {
+            color: #4040ff;
+        }
+    </style>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/github-markdown-css/5.2.0/github-markdown-dark.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/styles/github-dark.min.css">    
+</head>
+<body>
+    <div class="toolbar">
+        <button id="toggleTree">☰</button>
+        <h1>OpenOSSID</h1>
+        <div>
+            <button id="editButton">Edit</button>
+            <button id="loadButton">Load</button>
+            <button id="saveButton">Save</button>
+        </div>
+    </div>
+    <div class="container">
+        <div class="treeview" id="treeview">
+            <div id="resizer"></div>
+            <ul id="tree"></ul>
+        </div>
+        <div class="content" id="content"></div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/markdown-it/dist/markdown-it.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/highlight.min.js"></script>
+    
+    <script>
+              const md = window.markdownit({
+            highlight: function (str, lang) {
+                if (lang && hljs.getLanguage(lang)) {
+                    try {
+                        return `<pre><code class="hljs">${hljs.highlight(str, { language: lang }).value}</code></pre>`;
+                    } catch (__) {}
+                }
+                return `<pre><code class="hljs">${md.utils.escapeHtml(str)}</code></pre>`;
+            }
+        });
+
+        const treeview = document.getElementById('treeview');
+        const tree = document.getElementById('tree');
+        const content = document.getElementById('content');
+        const editButton = document.getElementById('editButton');
+        const saveButton = document.getElementById('saveButton');
+        const loadButton = document.getElementById('loadButton');
+
+        let nodes = JSON.parse(localStorage.getItem('nodes')) || [];
+        if (nodes.length === 0) {
+ nodes.push({
+    name: 'Root',
+    content: `# Welcome to openOSSID!  
+openOSSID is a markdown note manager.
+
+On the left side, you can create new nodes. Each node represents a note and can also have subnodes.  
+
+By clicking **Edit**, you can edit the page, and by clicking **View**, you save it to the browser's local storage.  
+The **Save** button allows you to export all your notes, and the **Load** button lets you reload them.  
+In other words, your notes always stay on your computer, and no one else can see them.  
+
+## Example
+- **Bold**
+- *Italic*
+- [Link](https://example.com)
+
+> This is a blockquote
+
+\`\`\`javascript
+// This is a JavaScript code example
+console.log("Hello, world!");
+\`\`\`
+
+\`\`\`python
+# This is a Python code example
+print("Hello, world!")
+\`\`\`
+`,
+    children: []
+});
+
+            localStorage.setItem('nodes', JSON.stringify(nodes));
+        }
+        let selectedNode = null;
+        let isEditing = false;
+
+        function renderTree() {
+            tree.innerHTML = '';
+            function buildTree(nodes, parent) {
+                nodes.forEach(node => {
+                    const li = document.createElement('li');
+                    li.textContent = node.name;
+
+                    const toggle = document.createElement('span');
+                    toggle.textContent = node.expanded ? '-' : '+';
+                    toggle.className = 'toggle';
+                    toggle.onclick = (e) => {
+                        e.stopPropagation();
+                        node.expanded = !node.expanded;
+                        renderTree();
+                    };
+
+                    li.prepend(toggle);
+                    if (node.expanded) {
+                        li.classList.add('expanded');
+                    }
+
+                    li.onclick = (e) => {
+                        e.stopPropagation();
+                        clearSelection();
+                        selectedNode = node;
+                        li.classList.add('selected');
+                        if (!isEditing) {
+                            content.innerHTML = md.render(node.content);
+                        }
+                    };
+                    
+                    li.oncontextmenu = (e) => {
+                        e.stopPropagation();
+                        e.preventDefault();
+                        clearSelection();
+                        selectedNode = node;
+                        li.classList.add('selected');
+                        showContextMenu(e.pageX, e.pageY);
+                    };
+
+                    parent.appendChild(li);
+                    if (node.children.length > 0) {
+                        const ul = document.createElement('ul');
+                        buildTree(node.children, ul);
+                        li.appendChild(ul);
+                    }
+                });
+            }
+            buildTree(nodes, tree);
+            localStorage.setItem('nodes', JSON.stringify(nodes));
+        }
+
+        function clearSelection() {
+            document.querySelectorAll('.treeview li').forEach(nodeEl => nodeEl.classList.remove('selected'));
+        }
+
+        function showContextMenu(x, y) {
+            const existingMenu = document.querySelector('.context-menu');
+            if (existingMenu) {
+                existingMenu.remove();
+            }
+
+            const menu = document.createElement('div');
+            menu.className = 'context-menu';
+            menu.style.top = `${y}px`;
+            menu.style.left = `${x}px`;
+
+            const create = document.createElement('div');
+            create.textContent = 'Create Node';
+            create.onclick = () => {
+                const name = prompt('Enter node name:');
+                if (name) {
+                    if (!selectedNode.children) {
+                        selectedNode.children = [];
+                    }
+                    selectedNode.children.push({ name, content: '', children: [] });
+                    renderTree();
+                }
+                menu.remove();
+            };
+
+            const remove = document.createElement('div');
+            remove.textContent = 'Delete Node';
+            remove.onclick = () => {
+                if (!selectedNode) {
+                    alert('No node selected.');
+                    return;
+                }
+
+                function removeNode(nodes, node) {
+                    for (let i = 0; i < nodes.length; i++) {
+                        if (nodes[i] === node) {
+                            nodes.splice(i, 1);
+                            return true;
+                        } else if (nodes[i].children) {
+                            if (removeNode(nodes[i].children, node)) {
+                                return true;
+                            }
+                        }
+                    }
+                    return false;
+                }
+
+                removeNode(nodes, selectedNode);
+                selectedNode = null;
+                renderTree();
+                menu.remove();
+            };
+
+            menu.appendChild(create);
+            if (selectedNode) menu.appendChild(remove);
+            document.body.appendChild(menu);
+
+            document.addEventListener('click', (e) => {
+                if (!menu.contains(e.target)) {
+                    menu.remove();
+                }
+            }, { once: true });
+        }
+
+        editButton.onclick = () => {
+            if (selectedNode) {
+                if (isEditing) {
+                    editButton.textContent = "Edit";
+                    selectedNode.content = content.querySelector('textarea').value;
+                    content.innerHTML = md.render(selectedNode.content);
+                    localStorage.setItem('nodes', JSON.stringify(nodes));
+                } else {
+                    editButton.textContent = "View";
+                    const textarea = document.createElement('textarea');
+                    textarea.className = 'textarea';
+                    textarea.value = selectedNode.content;
+                    content.innerHTML = '';
+                    content.appendChild(textarea);
+                }
+                isEditing = !isEditing;
+            }
+        };
+
+        saveButton.onclick = () => {
+            const name = prompt('Enter file name:');
+            if (name) {
+                const blob = new Blob([JSON.stringify(nodes)], { type: 'application/json' });
+                const link = document.createElement('a');
+                link.href = URL.createObjectURL(blob);
+                link.download = `${name}.json`;
+                link.click();
+            }
+        };
+
+        loadButton.onclick = () => {
+            const input = document.createElement('input');
+            input.type = 'file';
+            input.accept = 'application/json';
+            input.onchange = () => {
+                const file = input.files[0];
+                const reader = new FileReader();
+                reader.onload = () => {
+                    nodes = JSON.parse(reader.result);
+                    localStorage.setItem('nodes', JSON.stringify(nodes));
+                    renderTree();
+                };
+                reader.readAsText(file);
+            };
+            input.click();
+        };
+
+        renderTree();
+
+        const toggleTree = document.getElementById('toggleTree');
+
+        toggleTree.onclick = () => {
+            treeview.style.display = treeview.style.display === 'none' ? 'block' : 'none';
+        };
+                
+        const resizer = document.getElementById('resizer');
+        let isResizing = false;
+
+        resizer.addEventListener('mousedown', (e) => {
+            isResizing = true;
+            document.body.style.cursor = 'col-resize';
+        });
+
+        document.addEventListener('mousemove', (e) => {
+            if (isResizing) {
+                const newWidth = e.clientX;
+                treeview.style.width = `${newWidth}px`;
+            }
+        });
+
+        document.addEventListener('mouseup', () => {
+            if (isResizing) {
+                isResizing = false;
+                document.body.style.cursor = 'default';
+            }
+        });
+    </script>
+</body>
+</html>
