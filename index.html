@@ -243,6 +243,10 @@ print("Hello, world!")
 
             localStorage.setItem('nodes', JSON.stringify(nodes));
         }
+                
+        const nodeValue = new URLSearchParams(window.location.search).get('node');
+        if (nodeValue) localStorage.setItem('selectedNode', JSON.stringify({ name: nodeValue }));
+
         let selectedNode = nodes[0]; // Seleziona il primo nodo come predefinito
 
         function initializeSelectedNode() {
