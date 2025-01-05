@@ -36,7 +36,7 @@
         }
         .container {
             display: flex;
-            height: calc(100vh - 50px);
+            height: calc(100vh - 45px);
         }
         .treeview {
             width: 300px;
@@ -73,18 +73,27 @@
         }
         .content {
             flex: 1;
-            padding: 10px;
+            padding: 5px;
             background-color: #1e1e1e;
             overflow-y: auto;
         }
         .textarea {
-            width: 100%;
-            height: calc(100% - 20px);
+            width: calc( 100% - 20px);
+            height: calc(100% - 26px);
             background-color: #333;
             color: white;
             border: none;
             padding: 10px;
             font-family: monospace;
+            border: 1px solid #30363d;
+            border-radius: 5px;
+            background-color: #161b22;
+            color: #c9d1d9;
+            resize: none;
+        }
+        .textarea:focus {
+            outline: none;
+            border-color: #58a6ff;
         }
         .context-menu {
             position: absolute;
@@ -131,20 +140,6 @@
             cursor: col-resize;
             background-color: #444;
         }
-        textarea {
-            width: 100%;
-            height: 150px;
-            padding: 10px;
-            margin-bottom: 20px;
-            border: 1px solid #30363d;
-            border-radius: 5px;
-            background-color: #161b22;
-            color: #c9d1d9;
-        }
-        textarea:focus {
-            outline: none;
-            border-color: #58a6ff;
-        }
         pre {
             background-color: rgba(36, 41, 46, 0.5) !important; /* Sovrascrive eventuali stili di default */
             border-radius: 6px;
@@ -174,7 +169,8 @@
         <h1>OpenOSSID</h1>
         <div>
             <button id="editButton">&#9998; Edit</button>
-            <button id="loadButton">&#10227; Load</button>
+            <button id="loadButton">&#128193; Load</button>
+            <button id="mergeButton">&#8614; merge</button>
             <button id="saveButton">&#128190; Save</button>
         </div>
     </div>
@@ -205,8 +201,9 @@
         const tree = document.getElementById('tree');
         const content = document.getElementById('content');
         const editButton = document.getElementById('editButton');
-        const saveButton = document.getElementById('saveButton');
         const loadButton = document.getElementById('loadButton');
+        const mergeButton = document.getElementById('mergeButton');
+        const saveButton = document.getElementById('saveButton');
 
         const nodeValue = new URLSearchParams(window.location.search).get('node');
         if (nodeValue) localStorage.setItem('selectedNode', JSON.stringify({ name: nodeValue }));
@@ -465,6 +462,43 @@ print("Hello, world!")
             input.click();
         };
         
+mergeButton.onclick = () => {
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = 'application/json';
+    input.onchange = () => {
+        const file = input.files[0];
+        const reader = new FileReader();
+        reader.onload = () => {
+            try {
+                const loadedNodes = JSON.parse(reader.result);
+                if (!Array.isArray(loadedNodes)) {
+                    console.error('The JSON file does not contain an array.');
+                    return;
+                }
+
+                if (!selectedNode || !Array.isArray(selectedNode.children)) {
+                    console.error('selectedNode is invalid or does not contain an array of children.');
+                    return;
+                }
+
+                loadedNodes.forEach(node => {
+                    selectedNode.children.push(node);
+                });
+
+                localStorage.setItem('nodes', JSON.stringify(nodes));
+                renderTree();
+            } catch (error) {
+                console.error('Error parsing JSON:', error);
+            }
+        };
+        reader.readAsText(file);
+    };
+    input.click();
+};
+
+
+
         renderTree();
 
         const toggleTree = document.getElementById('toggleTree');
@@ -506,6 +540,7 @@ print("Hello, world!")
             });
         }, 10);
 */
+
     </script>
 </body>
 </html>
