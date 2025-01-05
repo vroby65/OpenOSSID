@@ -14,10 +14,10 @@
 - **Local Storage**: All notes are saved locally on your device. No server, no cloud, just privacy.
 - **Tree View**: Organize your notes in a hierarchical structure with parent and child nodes.
 - **Drag and Drop Resizable Sidebar**: Easily adjust the width of the tree view panel.
-- **Export and Import**: Save your notes as a JSON file or reload them when needed.
+- **Export Import and merge**: Save your notes as a JSON file or reload or merge them when needed.
 - **Context Menu**: Right-click on nodes to add, rename, or delete them.
 - **Direct node access**: Added support for opening the node from URL.
-- **Rename Menu**:Added a rename menu to rename nodes.
+- **Rename Menu**:rename menu to rename nodes.
 - **load default.json**: Added code to load default.json from disk (Commented out by default).
 
 ## Getting Started
