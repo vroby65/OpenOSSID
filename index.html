@@ -208,11 +208,17 @@
         const saveButton = document.getElementById('saveButton');
         const loadButton = document.getElementById('loadButton');
 
+        const nodeValue = new URLSearchParams(window.location.search).get('node');
+        if (nodeValue) localStorage.setItem('selectedNode', JSON.stringify({ name: nodeValue }));
+
+
         let nodes = JSON.parse(localStorage.getItem('nodes')) || [];
+        let selectedNode = nodes[0]; 
+
         if (nodes.length === 0) {
- nodes.push({
-    name: 'Root',
-    content: `# Welcome to openOSSID!  
+            nodes.push({
+                name: 'Root',
+                content: `# Welcome to openOSSID!  
 openOSSID is a markdown note manager.
 
 On the left side, you can create new nodes. Each node represents a note and can also have subnodes.  
@@ -236,18 +242,13 @@ console.log("Hello, world!");
 \`\`\`python
 # This is a Python code example
 print("Hello, world!")
-\`\`\`
-`,
-    children: []
-});
+\`\`\``,
+                children: []
+            });
 
             localStorage.setItem('nodes', JSON.stringify(nodes));
         }
                 
-        const nodeValue = new URLSearchParams(window.location.search).get('node');
-        if (nodeValue) localStorage.setItem('selectedNode', JSON.stringify({ name: nodeValue }));
-
-        let selectedNode = nodes[0]; // Seleziona il primo nodo come predefinito
 
         function initializeSelectedNode() {
             const savedNode = localStorage.getItem('selectedNode');
@@ -364,6 +365,17 @@ print("Hello, world!")
                 menu.remove();
             };
 
+            const rename = document.createElement('div');
+            rename.textContent = 'Rename Node';
+            rename.onclick = () => {
+                const newname = prompt('Enter node new name:', selectedNode.name);
+                if (newname) {
+                        selectedNode.name = newname;
+                }
+                renderTree();
+                menu.remove();
+            };
+
             const remove = document.createElement('div');
             remove.textContent = 'Delete Node';
             remove.onclick = () => {
@@ -393,7 +405,10 @@ print("Hello, world!")
             };
 
             menu.appendChild(create);
-            if (selectedNode) menu.appendChild(remove);
+            if (selectedNode){ 
+                menu.appendChild(rename);
+                menu.appendChild(remove);
+            }
             document.body.appendChild(menu);
 
             document.addEventListener('click', (e) => {
@@ -449,7 +464,7 @@ print("Hello, world!")
             };
             input.click();
         };
-
+        
         renderTree();
 
         const toggleTree = document.getElementById('toggleTree');
@@ -479,6 +494,18 @@ print("Hello, world!")
                 document.body.style.cursor = 'default';
             }
         });
+
+/*        setTimeout(() => {
+            fetch('./-default.json')
+                .then(res => res.ok ? res.json() : Promise.reject('File non trovato'))
+                .then(data => {
+                    nodes = data;
+                    localStorage.setItem('nodes', JSON.stringify(nodes)); 
+                    initializeSelectedNode();
+                    renderTree(); 
+            });
+        }, 10);
+*/
     </script>
 </body>
 </html>
