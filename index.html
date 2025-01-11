@@ -58,6 +58,7 @@
         }
         .treeview li.selected {
             background-color: #444;
+            color: #fff;
         }
         .treeview li .toggle {
             position: absolute;
@@ -118,6 +119,13 @@
             box-shadow: 0 4px 10px rgba(0, 0, 0, 0.5);
             color: #c9d1d9;
         }
+        .markdown-body img {
+            max-width: 100%; /* Per adattare le immagini al contenitore */
+            height: auto; /* Mantiene le proporzioni */
+            display: block; /* Assicura il layout corretto */
+            margin: 10px 0; /* Spaziatura attorno alle immagini */
+        }
+
         #toggleTree {
             margin-right: 10px;
             background-color: #555;
@@ -141,18 +149,18 @@
             background-color: #444;
         }
         pre {
-            background-color: rgba(36, 41, 46, 0.5) !important; /* Sovrascrive eventuali stili di default */
+            background-color: rgba(36, 41, 46, 0.5) !important; 
             border-radius: 6px;
             padding: 10px;
             overflow-x: auto;
-            color: #c9d1d9; /* Assicura un testo leggibile */
+            color: #c9d1d9; 
         }
         pre code {
-            background-color: transparent !important; /* Evita conflitti con lo sfondo del <pre> */
-            display: block; /* Assicura il layout corretto */
+            background-color: transparent !important; 
+            display: block; 
         }
         code {
-            background-color: rgba(36, 41, 46, 0.5); /* Sfondo semitrasparente per codice inline */
+            background-color: rgba(36, 41, 46, 0.5); 
             padding: 2px 4px;
             border-radius: 3px;
         }
@@ -186,7 +194,55 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/highlight.min.js"></script>
     
     <script>
-              const md = window.markdownit({
+        const idb = {
+            dbName: window.location.href,
+            storeName: 'keyvaluepairs',
+
+            initDB() {
+                return new Promise((resolve, reject) => {
+                    const request = indexedDB.open(this.dbName, 1);
+
+                    request.onupgradeneeded = (event) => {
+                        const db = event.target.result;
+                        if (!db.objectStoreNames.contains(this.storeName)) {
+                            db.createObjectStore(this.storeName);
+                        }
+                    };
+
+                    request.onsuccess = () => resolve(request.result);
+                    request.onerror = () => reject(request.error);
+                });
+            },
+
+            setItem(key, value) {
+                return this.initDB().then((db) => {
+                    return new Promise((resolve, reject) => {
+                        const transaction = db.transaction(this.storeName, 'readwrite');
+                        const store = transaction.objectStore(this.storeName);
+                        const request = store.put(value, key);
+
+                        request.onsuccess = () => resolve();
+                        request.onerror = () => reject(request.error);
+                    });
+                });
+            },
+
+            getItem(key) {
+                return this.initDB().then((db) => {
+                    return new Promise((resolve, reject) => {
+                        const transaction = db.transaction(this.storeName, 'readonly');
+                        const store = transaction.objectStore(this.storeName);
+                        const request = store.get(key);
+
+                        request.onsuccess = () => resolve(request.result || null);
+                        request.onerror = () => reject(request.error);
+                    });
+                });
+            },
+        };
+
+        const md = window.markdownit({
+            html: true,
             highlight: function (str, lang) {
                 if (lang && hljs.getLanguage(lang)) {
                     try {
@@ -194,243 +250,154 @@
                     } catch (__) {}
                 }
                 return `<pre><code class="hljs">${md.utils.escapeHtml(str)}</code></pre>`;
-            }
+            },
         });
 
-        const treeview = document.getElementById('treeview');
         const tree = document.getElementById('tree');
         const content = document.getElementById('content');
         const editButton = document.getElementById('editButton');
-        const loadButton = document.getElementById('loadButton');
-        const mergeButton = document.getElementById('mergeButton');
         const saveButton = document.getElementById('saveButton');
+        const loadButton = document.getElementById('loadButton');
 
-        const nodeValue = new URLSearchParams(window.location.search).get('node');
-        if (nodeValue) localStorage.setItem('selectedNode', JSON.stringify({ name: nodeValue }));
-
-
-        let nodes = JSON.parse(localStorage.getItem('nodes')) || [];
-        let selectedNode = nodes[0]; 
-
-        if (nodes.length === 0) {
-            nodes.push({
-                name: 'Root',
-                content: `# Welcome to openOSSID!  
-openOSSID is a markdown note manager.
-
-On the left side, you can create new nodes. Each node represents a note and can also have subnodes.  
-
-By clicking **Edit**, you can edit the page, and by clicking **View**, you save it to the browser's local storage.  
-The **Save** button allows you to export all your notes, and the **Load** button lets you reload them.  
-In other words, your notes always stay on your computer, and no one else can see them.  
-
-## Example
-- **Bold**
-- *Italic*
-- [Link](https://example.com)
-
-> This is a blockquote
-
-\`\`\`javascript
-// This is a JavaScript code example
-console.log("Hello, world!");
-\`\`\`
-
-\`\`\`python
-# This is a Python code example
-print("Hello, world!")
-\`\`\``,
-                children: []
-            });
-
-            localStorage.setItem('nodes', JSON.stringify(nodes));
-        }
-                
-
-        function initializeSelectedNode() {
-            const savedNode = localStorage.getItem('selectedNode');
-            if (savedNode) {
-                const savedNodePath = JSON.parse(savedNode);
-                selectedNode = findNodeByName(nodes, savedNodePath.name);
-            }
-        }
-        
-        function findNodeByName(nodes, name) {
-            for (let node of nodes) {
-                if (node.name === name) {
-                    return node;
-                }
-                if (node.children && node.children.length > 0) {
-                    const found = findNodeByName(node.children, name);
-                    if (found) {
-                        return found;
-                    }
-                }
-            }
-            return null;
-        }
-        
-        initializeSelectedNode();
-
+        let nodes = [];
+        let selectedNode = null;
         let isEditing = false;
 
+        async function initializeNodes() {
+            try {
+                const nodesData = await idb.getItem('nodes');
+                nodes = nodesData ? JSON.parse(nodesData) : [];
+
+                if (nodes.length === 0) {
+                    nodes.push({
+                        name: 'Root',
+                        content: `# Welcome to OpenOSSID!  
+    openOSSID is a markdown note manager.
+
+    On the left side, you can create new nodes. Each node represents a note and can also have subnodes.  
+
+    By clicking **Edit**, you can edit the page, and by clicking **View**, you save it to the browser's local storage.  
+    The **Save** button allows you to export all your notes, and the **Load** button lets you reload them.  
+    In other words, your notes always stay on your computer, and no one else can see them.  
+
+    ## Example
+    - **Bold**
+    - *Italic*
+    - [Link](https://example.com)
+
+    > This is a blockquote
+
+    \`\`\`javascript
+    // This is a JavaScript code example
+    console.log("Hello, world!");
+    \`\`\`
+
+    \`\`\`python
+    # This is a Python code example
+    print("Hello, world!")
+    \`\`\``,
+                        children: [],
+                    });
+
+                    await idb.setItem('nodes', JSON.stringify(nodes));
+                }
+
+                renderTree();
+            } catch (error) {
+                console.error('Error initializing nodes:', error);
+            }
+        }
+
         function renderTree() {
-            tree.innerHTML = '';
-            function buildTree(nodes, parent) {
-                nodes.forEach(node => {
-                    const li = document.createElement('li');
-                    li.textContent = node.name;
+        tree.innerHTML = '';
+        function buildTree(nodes, parent) {
+            nodes.forEach((node) => {
+                const li = document.createElement('li');
+                li.textContent = node.name;
+                li.setAttribute('draggable', 'true');
 
-                    const toggle = document.createElement('span');
-                    toggle.textContent = node.expanded ? '-' : '+';
-                    toggle.className = 'toggle';
-                    toggle.onclick = (e) => {
-                        e.stopPropagation();
-                        node.expanded = !node.expanded;
-                        renderTree();
-                    };
+                const toggle = document.createElement('span');
+                toggle.className = 'toggle';
+                toggle.textContent = node.children.length > 0 ? (node.expanded ? '-' : '+') : '';
+                li.prepend(toggle);
 
-                    li.prepend(toggle);
-                    if (node.expanded) {
-                        li.classList.add('expanded');
-                    }
+                if (node.expanded) {
+                    li.classList.add('expanded');
+                }
 
-                    li.onclick = (e) => {
-                        e.stopPropagation();
-                        clearSelection();
-                        selectedNode = node;
-                        localStorage.setItem('selectedNode', JSON.stringify({ name: node.name }));
-                        li.classList.add('selected');
-                        if (!isEditing) {
-                            content.innerHTML = md.render(node.content);
-                        }
-                    };
-                    
-                    li.oncontextmenu = (e) => {
-                        e.stopPropagation();
-                        e.preventDefault();
-                        clearSelection();
-                        selectedNode = node;
-                        li.classList.add('selected');
-                        showContextMenu(e.pageX, e.pageY);
-                    };
-
-                    parent.appendChild(li);
-                    if (node.children.length > 0) {
-                        const ul = document.createElement('ul');
-                        buildTree(node.children, ul);
-                        li.appendChild(ul);
-                    }
-
-                    // Mostra il contenuto del nodo corrente selezionato
-                    if (selectedNode && node === selectedNode) {
-                        li.classList.add('selected');
-                        content.innerHTML = md.render(selectedNode.content);
-                    }                    
-                });
-            }
-            buildTree(nodes, tree);
-            localStorage.setItem('nodes', JSON.stringify(nodes));
-        }
-
-        function clearSelection() {
-            document.querySelectorAll('.treeview li').forEach(nodeEl => nodeEl.classList.remove('selected'));
-        }
-
-        function showContextMenu(x, y) {
-            const existingMenu = document.querySelector('.context-menu');
-            if (existingMenu) {
-                existingMenu.remove();
-            }
-
-            const menu = document.createElement('div');
-            menu.className = 'context-menu';
-            menu.style.top = `${y}px`;
-            menu.style.left = `${x}px`;
-
-            const create = document.createElement('div');
-            create.textContent = 'Create Node';
-            create.onclick = () => {
-                const name = prompt('Enter node name:');
-                if (name) {
-                    if (!selectedNode.children) {
-                        selectedNode.children = [];
-                    }
-                    selectedNode.children.push({ name, content: '', children: [] });
+                toggle.onclick = (e) => {
+                    e.stopPropagation();
+                    node.expanded = !node.expanded;
+                    idb.setItem('nodes', JSON.stringify(nodes));
                     renderTree();
-                }
-                menu.remove();
-            };
+                };
 
-            const rename = document.createElement('div');
-            rename.textContent = 'Rename Node';
-            rename.onclick = () => {
-                const newname = prompt('Enter node new name:', selectedNode.name);
-                if (newname) {
-                        selectedNode.name = newname;
-                }
-                renderTree();
-                menu.remove();
-            };
-
-            const remove = document.createElement('div');
-            remove.textContent = 'Delete Node';
-            remove.onclick = () => {
-                if (!selectedNode) {
-                    alert('No node selected.');
-                    return;
-                }
-
-                function removeNode(nodes, node) {
-                    for (let i = 0; i < nodes.length; i++) {
-                        if (nodes[i] === node) {
-                            nodes.splice(i, 1);
-                            return true;
-                        } else if (nodes[i].children) {
-                            if (removeNode(nodes[i].children, node)) {
-                                return true;
-                            }
-                        }
+                function saveLastOpenedNode(node) {
+                    if (node) {
+                        localStorage.setItem('lastOpenedNode', node.name); // Usa il nome del nodo come identificatore
                     }
-                    return false;
                 }
 
-                removeNode(nodes, selectedNode);
-                selectedNode = null;
-                renderTree();
-                menu.remove();
-            };
+                li.onclick = (e) => {
+                    e.stopPropagation();
+                    document.querySelectorAll('.treeview li').forEach((el) => el.classList.remove('selected'));
+                    li.classList.add('selected');
+                    selectedNode = node;
+                    saveLastOpenedNode(node); // Salva l'ultima scheda aperta
+                    renderContent();
+                };
 
-            menu.appendChild(create);
-            if (selectedNode){ 
-                menu.appendChild(rename);
-                menu.appendChild(remove);
+                li.oncontextmenu = (e) => {
+                    e.preventDefault();
+                    document.querySelectorAll('.treeview li').forEach((el) => el.classList.remove('selected'));
+                    li.classList.add('selected');
+                    selectedNode = node;
+                    showContextMenu(e);
+                };
+
+                // Drag and Drop Event Handlers
+                li.ondragstart = (e) => handleDragStart(e, node);
+                li.ondragover = (e) => handleDragOver(e);
+                li.ondrop = (e) => handleDrop(e, node);
+
+                parent.appendChild(li);
+
+                if (node.children.length > 0) {
+                    const ul = document.createElement('ul');
+                    if (!node.expanded) ul.style.display = 'none';
+                    buildTree(node.children, ul);
+                    parent.appendChild(ul);
+                }
+            });
+        }
+            buildTree(nodes, tree);
+        }
+        
+        function renderContent() {
+            if (!selectedNode) return;
+
+            if (isEditing) {
+                const textarea = document.createElement('textarea');
+                textarea.className = 'textarea';
+                textarea.value = selectedNode.content;
+                content.innerHTML = '';
+                content.appendChild(textarea);
+            } else {
+                content.innerHTML = md.render(selectedNode.content);
             }
-            document.body.appendChild(menu);
-
-            document.addEventListener('click', (e) => {
-                if (!menu.contains(e.target)) {
-                    menu.remove();
-                }
-            }, { once: true });
         }
 
-        editButton.onclick = () => {
+        editButton.onclick = async () => {
             if (selectedNode) {
                 if (isEditing) {
-                    editButton.innerHTML = "&#9998; Edit";
                     selectedNode.content = content.querySelector('textarea').value;
-                    content.innerHTML = md.render(selectedNode.content);
-                    localStorage.setItem('nodes', JSON.stringify(nodes));
+                    await idb.setItem('nodes', JSON.stringify(nodes));
+                    editButton.textContent = '✎ Edit';
                 } else {
-                    editButton.innerHTML = "&#128269; View";
-                    const textarea = document.createElement('textarea');
-                    textarea.className = 'textarea';
-                    textarea.value = selectedNode.content;
-                    content.innerHTML = '';
-                    content.appendChild(textarea);
+                    editButton.textContent = '🔍 View';
                 }
                 isEditing = !isEditing;
+                renderContent();
             }
         };
 
@@ -452,52 +419,148 @@ print("Hello, world!")
             input.onchange = () => {
                 const file = input.files[0];
                 const reader = new FileReader();
-                reader.onload = () => {
-                    nodes = JSON.parse(reader.result);
-                    localStorage.setItem('nodes', JSON.stringify(nodes));
-                    renderTree();
+                reader.onload = async () => {
+                    try {
+                        nodes = JSON.parse(reader.result);
+                        await idb.setItem('nodes', JSON.stringify(nodes));
+                        renderTree();
+                    } catch (error) {
+                        console.error('Invalid JSON file:', error);
+                    }
                 };
                 reader.readAsText(file);
             };
             input.click();
         };
-        
-mergeButton.onclick = () => {
-    const input = document.createElement('input');
-    input.type = 'file';
-    input.accept = 'application/json';
-    input.onchange = () => {
-        const file = input.files[0];
-        const reader = new FileReader();
-        reader.onload = () => {
-            try {
-                const loadedNodes = JSON.parse(reader.result);
-                if (!Array.isArray(loadedNodes)) {
-                    console.error('The JSON file does not contain an array.');
-                    return;
-                }
+            
+        mergeButton.onclick = () => {
+            const input = document.createElement('input');
+            input.type = 'file';
+            input.accept = 'application/json';
+            input.onchange = () => {
+                const file = input.files[0];
+                const reader = new FileReader();
+                reader.onload = () => {
+                    try {
+                        const loadedNodes = JSON.parse(reader.result);
+                        if (!Array.isArray(loadedNodes)) {
+                            console.error('The JSON file does not contain an array.');
+                            return;
+                        }
 
-                if (!selectedNode || !Array.isArray(selectedNode.children)) {
-                    console.error('selectedNode is invalid or does not contain an array of children.');
-                    return;
-                }
+                        if (!selectedNode || !Array.isArray(selectedNode.children)) {
+                            console.error('selectedNode is invalid or does not contain an array of children.');
+                            return;
+                        }
 
-                loadedNodes.forEach(node => {
-                    selectedNode.children.push(node);
-                });
+                        loadedNodes.forEach(node => {
+                            selectedNode.children.push(node);
+                        });
 
-                localStorage.setItem('nodes', JSON.stringify(nodes));
-                renderTree();
-            } catch (error) {
-                console.error('Error parsing JSON:', error);
-            }
+                         idb.setItem('nodes', JSON.stringify(nodes));
+                        renderTree();
+                    } catch (error) {
+                        console.error('Error parsing JSON:', error);
+                    }
+                };
+                reader.readAsText(file);
+            };
+            input.click();
         };
-        reader.readAsText(file);
-    };
-    input.click();
-};
 
+        let contextMenu = null;
 
+        function initializeContextMenu() {
+            contextMenu = document.createElement('div');
+            contextMenu.className = 'context-menu';
+            contextMenu.style.display = 'none';
+
+            const options = [
+                { label: 'Add Node', action: addNode },
+               { label: 'Rename Node', action: renameNode },
+                { label: 'Delete Node', action: deleteNode },
+            ];
+
+            options.forEach(option => {
+                const item = document.createElement('div');
+                item.textContent = option.label;
+                item.onclick = () => {
+                    option.action();
+                    hideContextMenu();
+                };
+                contextMenu.appendChild(item);
+            });
+
+            document.body.appendChild(contextMenu);
+
+            document.addEventListener('click', hideContextMenu);
+        }
+
+        function showContextMenu(event) {
+            if (!contextMenu) return;
+            contextMenu.style.display = 'block';
+            contextMenu.style.left = `${event.pageX}px`;
+            contextMenu.style.top = `${event.pageY}px`;
+        }
+
+        function hideContextMenu() {
+            if (contextMenu) {
+                contextMenu.style.display = 'none';
+            }
+        }
+
+        function addNode() {
+            if (selectedNode) {
+                const nodeName = prompt('Enter node name:');
+                if (nodeName) {
+                    selectedNode.children.push({
+                        name: nodeName,
+                        content: '',
+                        children: [],
+                    });
+                    idb.setItem('nodes', JSON.stringify(nodes));
+                    renderTree();
+                }
+            }
+        }
+
+        function renameNode() {
+            if (selectedNode) {
+                const newName = prompt('Enter new name for the node:', selectedNode.name);
+                if (newName && newName.trim()) {
+                    selectedNode.name = newName.trim();
+                    idb.setItem('nodes', JSON.stringify(nodes)); // Salva la modifica nel database
+                    renderTree(); // Rerendi l'albero per riflettere il nuovo nome
+                }
+            } else {
+                alert('No node selected for renaming.');
+            }
+        }
+
+        function deleteNode() {
+            function removeNode(nodes, target) {
+                return nodes.filter(node => node !== target).map(node => {
+                    return { ...node, children: removeNode(node.children, target) };
+                });
+            }
+
+            if (selectedNode) {
+                nodes = removeNode(nodes, selectedNode);
+                selectedNode = null;
+                idb.setItem('nodes', JSON.stringify(nodes));
+                renderTree();
+                content.innerHTML = '';
+            }
+        }
+
+        function findNodeByName(nodes, name) {
+            for (const node of nodes) {
+                if (node.name === name) return node;
+                const found = findNodeByName(node.children, name);
+                if (found) return found;
+            }
+            return null;
+        }
 
         renderTree();
 
@@ -506,7 +569,7 @@ mergeButton.onclick = () => {
         toggleTree.onclick = () => {
             treeview.style.display = treeview.style.display === 'none' ? 'block' : 'none';
         };
-                
+                    
         const resizer = document.getElementById('resizer');
         let isResizing = false;
 
@@ -529,17 +592,101 @@ mergeButton.onclick = () => {
             }
         });
 
-/*        setTimeout(() => {
-            fetch('./-default.json')
-                .then(res => res.ok ? res.json() : Promise.reject('File non trovato'))
-                .then(data => {
-                    nodes = data;
-                    localStorage.setItem('nodes', JSON.stringify(nodes)); 
-                    initializeSelectedNode();
-                    renderTree(); 
+        let draggedNode = null;
+
+        function handleDragStart(e, node) {
+            draggedNode = node; // Salva il nodo trascinato
+            e.dataTransfer.effectAllowed = 'move';
+            e.dataTransfer.setData('text/plain', node.name);
+        }
+
+        function handleDragOver(e) {
+            e.preventDefault(); // Necessario per abilitare il drop
+            e.dataTransfer.dropEffect = 'move';
+        }
+
+        function handleDrop(e, targetNode) {
+            e.preventDefault();
+
+            if (draggedNode && draggedNode !== targetNode) {
+                // Rimuovi il nodo trascinato dalla sua posizione originale
+                removeNode(nodes, draggedNode);
+
+                // Aggiungi il nodo trascinato come figlio del nodo di destinazione
+                targetNode.children.push(draggedNode);
+                targetNode.expanded = true; // Espandi il nodo di destinazione
+
+                // Aggiorna i dati e il rendering
+                idb.setItem('nodes', JSON.stringify(nodes));
+                renderTree();
+            }
+            draggedNode = null; // Resetta il nodo trascinato
+        }
+
+        function removeNode(nodes, nodeToRemove) {
+            for (let i = 0; i < nodes.length; i++) {
+                if (nodes[i] === nodeToRemove) {
+                    nodes.splice(i, 1);
+                    return true;
+                }
+                if (removeNode(nodes[i].children, nodeToRemove)) {
+                    return true;
+                }
+            }
+            return false;
+        }
+        
+        async function initializeLastOpenedNode() {
+            const lastOpenedNodeName = localStorage.getItem('lastOpenedNode');
+            if (lastOpenedNodeName) {
+                selectedNode = findNodeByName(nodes, lastOpenedNodeName);
+                if (selectedNode) {
+                    renderContent();
+                    highlightNode(selectedNode.name);
+                }
+            }
+        }
+
+        function highlightNode(nodeName) {
+            const allNodes = document.querySelectorAll('.treeview li');
+            allNodes.forEach((el) => {
+                if (el.textContent === nodeName) {
+                    el.classList.add('selected');
+                    const parent = el.closest('ul');
+                    if (parent) parent.style.display = 'block'; // Assicura che il nodo sia visibile
+                } else {
+                    el.classList.remove('selected');
+                }
             });
+        }
+        
+        //*
+        async function loadDefaultNodes() {
+            try {
+                const response = await fetch('./default.json');
+                if (!response.ok) {
+                    throw new Error('File non trovato o errore nel caricamento');
+                }
+                const data = await response.json();
+                nodes = data;
+
+                await idb.setItem('nodes', JSON.stringify([]));
+                await idb.setItem('nodes', JSON.stringify(nodes));
+
+                renderTree();
+            } catch (error) {
+                console.error('Errore durante il caricamento di default.json:', error);
+            }
+        }
+
+ 
+        setTimeout(() => {
+            loadDefaultNodes();
         }, 10);
-*/
+        //*/
+        
+        initializeNodes().then(() => initializeLastOpenedNode());
+        initializeContextMenu();
 
     </script>
 </body>
