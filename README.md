@@ -62,7 +62,6 @@ Welcome to **OpenOSSID**!
 ```javascript
 console.log("Hello, OpenOSSID!");
 ```
-```
 
 ## Screenshots
 
