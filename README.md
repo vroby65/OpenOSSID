@@ -18,7 +18,7 @@
 - **Direct Node Access**: Open specific nodes directly from a URL.
 - **Rename Menu**: Easily rename nodes using the context menu.
 - **Default Notes Loader**: Added functionality to load a `default.json` file from the same folder as `index.html` (commented out by default).
-- **autoload pasted images**: Added support for loading pasted images in base64 and adjusted to keep the code readable.
+- **Autoload pasted images**: Added support for loading pasted images in base64 and adjusted to keep the code readable.
 
 ## Getting Started
 
