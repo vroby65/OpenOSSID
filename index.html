@@ -181,6 +181,68 @@
         a {
             color: #4040ff;
         }
+
+        .dropdown-menu {
+            position: relative;
+            display: flex;
+        }
+        .dropdown-menu button{
+            margin-left: 5px;
+        }
+
+        #menuToggleButton {
+            background-color: #555;
+            color: white;
+            border: none;
+            padding: 5px 10px;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+
+        #menuToggleButton:hover {
+            background-color: #777;
+        }
+
+        .menu-content {
+            display: flex;
+            flex-direction: column;
+            position: absolute;
+            right: 0;
+            top: 110%;
+            background-color: #333;
+            border: 1px solid #555;
+            z-index: 1000;
+        }
+
+        .menu-content button {
+            background-color: transparent;
+            color: white;
+            border: none;
+            padding: 5px 10px;
+            text-align: left;
+            width: 100%;
+            cursor: pointer;
+        }
+
+        .menu-content button:hover {
+            background-color: #444;
+        }
+
+        .hidden {
+            display: none;
+        }
+
+        @media (max-width: 640px) {
+            .toolbar > div {
+                display: none;
+            }
+
+            #hamburgerMenu {
+                display: flex;
+                position: relative;
+                cursor: pointer;
+            }
+        }                
     </style>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/github-markdown-css/5.2.0/github-markdown-dark.min.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/styles/github-dark.min.css">    
@@ -189,11 +251,20 @@
     <div class="toolbar">
         <button id="toggleTree">☰</button>
         <h1>OpenOSSID</h1>
-        <div>
+         <div>
             <button id="editButton">&#9998; Edit</button>
             <button id="loadButton">&#128193; Load</button>
-            <button id="mergeButton">&#8614; merge</button>
+            <button id="mergeButton">&#8614; Merge</button>
             <button id="saveButton">&#128190; Save</button>
+        </div>
+        <div id="hamburgerMenu" class="dropdown-menu hidden">
+            <button id="editButtonDropdown">&#9998; Edit</button>
+            <button id="menuToggleButton">⋮</button>
+            <div id="dropdownContent" class="menu-content hidden">
+                <button id="loadButtonDropdown">&#128193; Load</button>
+                <button id="mergeButtonDropdown">&#8614; Merge</button>
+                <button id="saveButtonDropdown">&#128190; Save</button>
+            </div>
         </div>
     </div>
     <div class="container">
@@ -272,6 +343,28 @@
         const editButton = document.getElementById('editButton');
         const saveButton = document.getElementById('saveButton');
         const loadButton = document.getElementById('loadButton');
+
+        const menuToggleButton = document.getElementById('menuToggleButton');
+        const dropdownContent = document.getElementById('dropdownContent');
+
+        // Mostra o nasconde il menu dropdown al clic
+        menuToggleButton.addEventListener('click', () => {
+            dropdownContent.classList.toggle('show');
+            dropdownContent.classList.toggle('hidden');
+        });
+
+        // Chiude il menu quando si clicca fuori
+        document.addEventListener('click', (event) => {
+            if (!dropdownContent.contains(event.target) && event.target !== menuToggleButton) {
+                dropdownContent.classList.remove('show');
+                dropdownContent.classList.toggle('hidden');
+            }
+        });
+
+        document.getElementById('editButtonDropdown').addEventListener('click', () => editButton.click());
+        document.getElementById('loadButtonDropdown').addEventListener('click', () => loadButton.click());
+        document.getElementById('mergeButtonDropdown').addEventListener('click', () => mergeButton.click());
+        document.getElementById('saveButtonDropdown').addEventListener('click', () => saveButton.click());
 
         let nodes = [];
         let selectedNode = null;
@@ -715,7 +808,7 @@
             });
         }
         
-        //*
+        /*
         async function loadDefaultNodes() {
             try {
                 const response = await fetch('./default.json');
@@ -733,6 +826,7 @@
                 console.error('Error in default.json upload:', error);
             }
         }
+
  
         setTimeout(() => {
             loadDefaultNodes();
