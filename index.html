@@ -39,11 +39,20 @@
             height: calc(100vh - 45px);
         }
         .treeview {
-            width: 300px;
+            width: 300px; 
+            min-width: 0; 
+            max-width: 100%; 
             background-color: #222;
             overflow-y: auto;
             padding: 10px;
             position: relative;
+            transition: width 0.3s ease, padding 0.3s ease; 
+        }
+
+        .treeview.hidden {
+            width: 0 !important; 
+            padding: 0 !important; 
+            overflow: hidden;
         }
         .treeview ul {
             list-style-type: none;
@@ -124,10 +133,10 @@
             color: #c9d1d9;
         }
         .markdown-body img {
-            max-width: 100%; /* Per adattare le immagini al contenitore */
-            height: auto; /* Mantiene le proporzioni */
-            display: block; /* Assicura il layout corretto */
-            margin: 10px 0; /* Spaziatura attorno alle immagini */
+            max-width: 100%; 
+            height: auto; 
+            display: block; 
+            margin: 10px 0; 
         }
 
         #toggleTree {
@@ -152,6 +161,7 @@
             cursor: col-resize;
             background-color: #444;
         }
+        
         pre {
             background-color: rgba(36, 41, 46, 0.5) !important; 
             border-radius: 6px;
@@ -338,7 +348,7 @@
 
                 function saveLastOpenedNode(node) {
                     if (node) {
-                        localStorage.setItem('lastOpenedNode', node.name); // Usa il nome del nodo come identificatore
+                        localStorage.setItem('lastOpenedNode', node.name); 
                     }
                 }
 
@@ -347,7 +357,7 @@
                     document.querySelectorAll('.treeview li').forEach((el) => el.classList.remove('selected'));
                     li.classList.add('selected');
                     selectedNode = node;
-                    saveLastOpenedNode(node); // Salva l'ultima scheda aperta
+                    saveLastOpenedNode(node); 
                     renderContent();
                 };
 
@@ -359,7 +369,6 @@
                     showContextMenu(e);
                 };
 
-                // Drag and Drop Event Handlers
                 li.ondragstart = (e) => handleDragStart(e, node);
                 li.ondragover = (e) => handleDragOver(e);
                 li.ondrop = (e) => handleDrop(e, node);
@@ -399,7 +408,7 @@
                             img.onload = () => {
                               const canvas = document.createElement('canvas');
                               const ctx = canvas.getContext('2d');
-                              const maxWidth = 500; // Larghezza massima
+                              const maxWidth = 500; 
                               const scale = Math.min(maxWidth / img.width, 1); 
                               canvas.width = img.width * scale;
                               canvas.height = img.height * scale;
@@ -563,8 +572,8 @@
                 const newName = prompt('Enter new name for the node:', selectedNode.name);
                 if (newName && newName.trim()) {
                     selectedNode.name = newName.trim();
-                    idb.setItem('nodes', JSON.stringify(nodes)); // Salva la modifica nel database
-                    renderTree(); // Rerendi l'albero per riflettere il nuovo nome
+                    idb.setItem('nodes', JSON.stringify(nodes)); 
+                    renderTree(); 
                 }
             } else {
                 alert('No node selected for renaming.');
@@ -599,22 +608,37 @@
         renderTree();
 
         const toggleTree = document.getElementById('toggleTree');
+        const treeview = document.getElementById('treeview');
+        const resizer = document.getElementById('resizer');
+
+        let isHidden = false; 
+        let isResizing = false; 
+        let originalWidth = 300; 
 
         toggleTree.onclick = () => {
-            treeview.style.display = treeview.style.display === 'none' ? 'block' : 'none';
+            isHidden = !isHidden;
+            if (isHidden) {
+                originalWidth = treeview.offsetWidth; 
+                treeview.classList.add('hidden');
+                resizer.style.display = 'none'; 
+                toggleTree.textContent = '→'; 
+            } else {
+                treeview.classList.remove('hidden');
+                treeview.style.width = `${originalWidth}px`; 
+                resizer.style.display = 'block'; 
+                toggleTree.textContent = '☰'; 
+            }
         };
-                    
-        const resizer = document.getElementById('resizer');
-        let isResizing = false;
 
         resizer.addEventListener('mousedown', (e) => {
+            if (isHidden) return; 
             isResizing = true;
             document.body.style.cursor = 'col-resize';
         });
 
         document.addEventListener('mousemove', (e) => {
             if (isResizing) {
-                const newWidth = e.clientX;
+                const newWidth = Math.max(e.clientX, 0); 
                 treeview.style.width = `${newWidth}px`;
             }
         });
@@ -625,17 +649,17 @@
                 document.body.style.cursor = 'default';
             }
         });
-
+        
         let draggedNode = null;
 
         function handleDragStart(e, node) {
-            draggedNode = node; // Salva il nodo trascinato
+            draggedNode = node; 
             e.dataTransfer.effectAllowed = 'move';
             e.dataTransfer.setData('text/plain', node.name);
         }
 
         function handleDragOver(e) {
-            e.preventDefault(); // Necessario per abilitare il drop
+            e.preventDefault(); 
             e.dataTransfer.dropEffect = 'move';
         }
 
@@ -643,18 +667,15 @@
             e.preventDefault();
 
             if (draggedNode && draggedNode !== targetNode) {
-                // Rimuovi il nodo trascinato dalla sua posizione originale
                 removeNode(nodes, draggedNode);
 
-                // Aggiungi il nodo trascinato come figlio del nodo di destinazione
                 targetNode.children.push(draggedNode);
-                targetNode.expanded = true; // Espandi il nodo di destinazione
+                targetNode.expanded = true; 
 
-                // Aggiorna i dati e il rendering
                 idb.setItem('nodes', JSON.stringify(nodes));
                 renderTree();
             }
-            draggedNode = null; // Resetta il nodo trascinato
+            draggedNode = null; 
         }
 
         function removeNode(nodes, nodeToRemove) {
@@ -687,7 +708,7 @@
                 if (el.textContent === nodeName) {
                     el.classList.add('selected');
                     const parent = el.closest('ul');
-                    if (parent) parent.style.display = 'block'; // Assicura che il nodo sia visibile
+                    if (parent) parent.style.display = 'block'; 
                 } else {
                     el.classList.remove('selected');
                 }
@@ -699,7 +720,7 @@
             try {
                 const response = await fetch('./default.json');
                 if (!response.ok) {
-                    throw new Error('File non trovato o errore nel caricamento');
+                    throw new Error('File not found or error in upload');
                 }
                 const data = await response.json();
                 nodes = data;
@@ -709,10 +730,9 @@
 
                 renderTree();
             } catch (error) {
-                console.error('Errore durante il caricamento di default.json:', error);
+                console.error('Error in default.json upload:', error);
             }
         }
-
  
         setTimeout(() => {
             loadDefaultNodes();
