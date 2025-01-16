@@ -48,6 +48,14 @@
             position: relative;
             transition: width 0.3s ease, padding 0.3s ease; 
         }
+        .treeview.collapsed {
+            width: 0;
+            padding: 0;
+        }
+        .treeview.decollapsed {
+            width: 300px;
+            padding: 10px;
+        }
 
         .treeview.hidden {
             width: 0 !important; 
@@ -255,7 +263,8 @@
             <button id="editButton">&#9998; Edit</button>
             <button id="loadButton">&#128193; Load</button>
             <button id="mergeButton">&#8614; Merge</button>
-            <button id="saveButton">&#128190; Save</button>
+            <button id="saveFromNodeButton">&#128190; Save from Node</button>
+            <button id="saveAllButton">&#128190; Save All</button>
         </div>
         <div id="hamburgerMenu" class="dropdown-menu hidden">
             <button id="editButtonDropdown">&#9998; Edit</button>
@@ -263,7 +272,8 @@
             <div id="dropdownContent" class="menu-content hidden">
                 <button id="loadButtonDropdown">&#128193; Load</button>
                 <button id="mergeButtonDropdown">&#8614; Merge</button>
-                <button id="saveButtonDropdown">&#128190; Save</button>
+                <button id="saveFromNodeButtonDropdown">&#128190; Save from Node</button>
+                <button id="saveAllButtonDropdown">&#128190; Save All</button>
             </div>
         </div>
     </div>
@@ -341,7 +351,8 @@
         const tree = document.getElementById('tree');
         const content = document.getElementById('content');
         const editButton = document.getElementById('editButton');
-        const saveButton = document.getElementById('saveButton');
+        const saveFromNodeButton = document.getElementById('saveFromNodeButton');
+        const saveAllButton = document.getElementById('saveAllButton');
         const loadButton = document.getElementById('loadButton');
 
         const menuToggleButton = document.getElementById('menuToggleButton');
@@ -357,14 +368,15 @@
         document.addEventListener('click', (event) => {
             if (!dropdownContent.contains(event.target) && event.target !== menuToggleButton) {
                 dropdownContent.classList.remove('show');
-                dropdownContent.classList.toggle('hidden');
+                dropdownContent.classList.add('hidden');
             }
         });
 
         document.getElementById('editButtonDropdown').addEventListener('click', () => editButton.click());
         document.getElementById('loadButtonDropdown').addEventListener('click', () => loadButton.click());
         document.getElementById('mergeButtonDropdown').addEventListener('click', () => mergeButton.click());
-        document.getElementById('saveButtonDropdown').addEventListener('click', () => saveButton.click());
+        document.getElementById('saveFromNodeButtonDropdown').addEventListener('click', () => saveFromNodeButton.click());
+        document.getElementById('saveAllButtonDropdown').addEventListener('click', () => saveAllButton.click());
 
         let nodes = [];
         let selectedNode = null;
@@ -537,10 +549,21 @@
             }
         };
 
-        saveButton.onclick = () => {
+        saveAllButton.onclick = () => {
             const name = prompt('Enter file name:');
             if (name) {
                 const blob = new Blob([JSON.stringify(nodes)], { type: 'application/json' });
+                const link = document.createElement('a');
+                link.href = URL.createObjectURL(blob);
+                link.download = `${name}.json`;
+                link.click();
+            }
+        };
+
+        saveFromNodeButton.onclick = () => {
+            const name = prompt('Enter file name:');
+            if (name) {
+                const blob = new Blob([JSON.stringify([selectedNode])], { type: 'application/json' });
                 const link = document.createElement('a');
                 link.href = URL.createObjectURL(blob);
                 link.download = `${name}.json`;
@@ -712,11 +735,14 @@
             isHidden = !isHidden;
             if (isHidden) {
                 originalWidth = treeview.offsetWidth; 
-                treeview.classList.add('hidden');
+                treeview.classList.remove('decollapsed');
+                treeview.classList.add('collapsed');
+                treeview.style.width='';
                 resizer.style.display = 'none'; 
                 toggleTree.textContent = '→'; 
             } else {
-                treeview.classList.remove('hidden');
+                treeview.classList.remove('collapsed');
+                treeview.classList.add('decollapsed');
                 treeview.style.width = `${originalWidth}px`; 
                 resizer.style.display = 'block'; 
                 toggleTree.textContent = '☰'; 
@@ -808,7 +834,7 @@
             });
         }
         
-        /*
+        //*
         async function loadDefaultNodes() {
             try {
                 const response = await fetch('./default.json');
@@ -839,3 +865,4 @@
     </script>
 </body>
 </html>
+
