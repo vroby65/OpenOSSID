@@ -548,6 +548,8 @@
                 });
             
                 textarea.focus();
+            }else {
+                content.innerHTML = md.render(selectedNode.content);
             }
         }
             
