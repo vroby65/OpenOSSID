@@ -494,46 +494,61 @@
         function renderContent() {
             if (!selectedNode) return;
 
-            if (isEditing) {
-                const textarea = document.createElement('textarea');
-                textarea.className = 'textarea';
-                textarea.value = selectedNode.content;
-                content.innerHTML = '';
-                content.appendChild(textarea);
-                textarea.addEventListener('paste', (event) => {
-                    const items = event.clipboardData?.items;
-                    if (items) {
-                      for (let i = 0; i < items.length; i++) {
-                        const item = items[i];
-                        if (item.type.startsWith('image/')) {
-                          const file = item.getAsFile();
-                          const reader = new FileReader();
-                          reader.onload = () => {
-                            const img = new Image();
-                            img.onload = () => {
-                              const canvas = document.createElement('canvas');
-                              const ctx = canvas.getContext('2d');
-                              const maxWidth = 500; 
-                              const scale = Math.min(maxWidth / img.width, 1); 
-                              canvas.width = img.width * scale;
-                              canvas.height = img.height * scale;
-                              ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-                              const base64String = canvas.toDataURL('image/png', 0.8); 
-                              const markdownImage = `![immagine incollata](${base64String})`;
-                              textarea.value += markdownImage;
-                            };
-                            img.src = reader.result; 
-                          };
-                          reader.readAsDataURL(file);
-                          event.preventDefault(); 
-                        }
-                      }
-                    }
-                });
-            } else {
-                content.innerHTML = md.render(selectedNode.content);
-            }
+if (isEditing) {
+    const textarea = document.createElement('textarea');
+    textarea.className = 'textarea';
+    textarea.value = selectedNode.content;
+    content.innerHTML = '';
+    content.appendChild(textarea);
+    
+    textarea.addEventListener('keydown', (event) => {
+        if (event.key === 'Tab') {
+            event.preventDefault(); // Impedisce il cambio di focus
+            const start = textarea.selectionStart;
+            const end = textarea.selectionEnd;
+
+            // Inserisce un carattere di tabulazione (4 spazi o \t)
+            const tabCharacter = '    '; // Oppure '\t' per il tab vero e proprio
+            textarea.value = textarea.value.substring(0, start) + tabCharacter + textarea.value.substring(end);
+
+            // Riposiziona il cursore dopo il tab
+            textarea.selectionStart = textarea.selectionEnd = start + tabCharacter.length;
         }
+    });
+
+    textarea.addEventListener('paste', (event) => {
+        const items = event.clipboardData?.items;
+        if (items) {
+          for (let i = 0; i < items.length; i++) {
+            const item = items[i];
+            if (item.type.startsWith('image/')) {
+              const file = item.getAsFile();
+              const reader = new FileReader();
+              reader.onload = () => {
+                const img = new Image();
+                img.onload = () => {
+                  const canvas = document.createElement('canvas');
+                  const ctx = canvas.getContext('2d');
+                  const maxWidth = 500; 
+                  const scale = Math.min(maxWidth / img.width, 1); 
+                  canvas.width = img.width * scale;
+                  canvas.height = img.height * scale;
+                  ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+                  const base64String = canvas.toDataURL('image/png', 0.8); 
+                  const markdownImage = `![immagine incollata](${base64String})`;
+                  textarea.value += markdownImage;
+                };
+                img.src = reader.result; 
+              };
+              reader.readAsDataURL(file);
+              event.preventDefault(); 
+            }
+          }
+        }
+    });
+
+    textarea.focus();
+}
 
         editButton.onclick = async () => {
             if (selectedNode) {
