@@ -280,7 +280,11 @@
 </head>
 <body>
     <div class="toolbar">
-        <button id="toggleTree">☰</button>
+        <span>
+          <button id="toggleTree">☰</button>
+          <button id="toggleSearch">🔍</button>
+          <input type="text" id="searchInput" placeholder="Cerca..." style="display:none; margin-left:5px;"/>
+        </span>
         <h1>OpenOSSID</h1>
          <div>
             <button id="editButton">&#9998; Edit</button>
@@ -312,6 +316,70 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/highlight.min.js"></script>
     
     <script>
+        const toggleSearch = document.getElementById('toggleSearch');
+        const searchInput = document.getElementById('searchInput');
+
+        toggleSearch.addEventListener('click', () => {
+            if (searchInput.style.display === 'none') {
+                searchInput.style.display = 'inline-block';
+                searchInput.focus();
+            } else {
+                searchInput.style.display = 'none';
+            }
+        });
+              
+        let searchResults = [];
+        let currentSearchIndex = 0;
+        let lastQuery = "";
+
+        searchInput.addEventListener('keydown', (event) => {
+            if (event.key === 'Enter') {
+                const query = searchInput.value.trim().toLowerCase();
+                if (!query) return;
+
+                if (query !== lastQuery) {
+                    searchResults = [];
+                    currentSearchIndex = 0;
+                    lastQuery = query;
+                    collectMatchingNodes(query, nodes, searchResults);
+                }
+                
+                if (searchResults.length === 0) {
+                    alert('Nessuna occorrenza trovata.');
+                    return;
+                }
+                
+                if (currentSearchIndex >= searchResults.length) {
+                    currentSearchIndex = 0;
+                }
+                
+                const result = searchResults[currentSearchIndex];
+                selectedNode = result;
+                highlightNode(result.name);
+                renderContent();
+                
+                const treeItems = document.querySelectorAll('.treeview li');
+                treeItems.forEach(item => {
+                    if (item.textContent.toLowerCase().includes(result.name.toLowerCase())) {
+                        item.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    }
+                });
+                
+                currentSearchIndex++;
+            }
+        });
+
+        function collectMatchingNodes(query, nodesArray, resultArray) {
+            nodesArray.forEach(node => {
+                if (node.name.toLowerCase().includes(query)) {
+                    resultArray.push(node);
+                }
+                if (node.children && node.children.length > 0) {
+                    collectMatchingNodes(query, node.children, resultArray);
+                }
+            });
+        }
+      
         const idb = {
             dbName: window.location.href,
             storeName: 'keyvaluepairs',
@@ -906,4 +974,3 @@
     </script>
 </body>
 </html>
-
