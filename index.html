@@ -519,68 +519,69 @@
         }
 
         function renderTree() {
-        tree.innerHTML = '';
-        function buildTree(nodes, parent) {
-            nodes.forEach((node) => {
-                const li = document.createElement('li');
-                li.textContent = node.name;
-                li.setAttribute('draggable', 'true');
+          tree.innerHTML = '';
+          function buildTree(nodes, parent) {
+              nodes.forEach((node) => {
+                  const li = document.createElement('li');
+                  li.textContent = node.name;
+                  li.setAttribute('draggable', 'true');
 
-                const toggle = document.createElement('span');
-                toggle.className = 'toggle';
-                toggle.textContent = node.children.length > 0 ? (node.expanded ? '-' : '+') : '';
-                li.prepend(toggle);
+                  const toggle = document.createElement('span');
+                  toggle.className = 'toggle';
+                  toggle.textContent = node.children.length > 0 ? (node.expanded ? '-' : '+') : '';
+                  li.prepend(toggle);
 
-                if (node.expanded) {
-                    li.classList.add('expanded');
-                }
+                  if (node.expanded) {
+                      li.classList.add('expanded');
+                  }
 
-                toggle.onclick = (e) => {
-                    e.stopPropagation();
-                    node.expanded = !node.expanded;
-                    idb.setItem('nodes', JSON.stringify(nodes));
-                    renderTree();
-                };
+                  toggle.onclick = (e) => {
+                      e.stopPropagation();
+                      node.expanded = !node.expanded;
+                      renderTree();
+                  };
 
-                function saveLastOpenedNode(node) {
-                    if (node) {
-                        localStorage.setItem('lastOpenedNode', node.name); 
-                    }
-                }
+                  function saveLastOpenedNode(node) {
+                      if (node) {
+                          localStorage.setItem('lastOpenedNode', node.name); 
+                      }
+                  }
 
-                li.onclick = (e) => {
-                    e.stopPropagation();
-                    document.querySelectorAll('.treeview li').forEach((el) => el.classList.remove('selected'));
-                    li.classList.add('selected');
-                    selectedNode = node;
-                    saveLastOpenedNode(node); 
-                    renderContent();
-                };
+                  li.onclick = (e) => {
+                      e.stopPropagation();
+                      document.querySelectorAll('.treeview li').forEach((el) => el.classList.remove('selected'));
+                      li.classList.add('selected');
+                      selectedNode = node;
+                      saveLastOpenedNode(node); 
+                      renderContent();
+                  };
 
-                li.oncontextmenu = (e) => {
-                    e.preventDefault();
-                    document.querySelectorAll('.treeview li').forEach((el) => el.classList.remove('selected'));
-                    li.classList.add('selected');
-                    selectedNode = node;
-                    showContextMenu(e);
-                };
+                  li.oncontextmenu = (e) => {
+                      e.preventDefault();
+                      document.querySelectorAll('.treeview li').forEach((el) => el.classList.remove('selected'));
+                      li.classList.add('selected');
+                      selectedNode = node;
+                      showContextMenu(e);
+                  };
 
-                li.ondragstart = (e) => handleDragStart(e, node);
-                li.ondragover = (e) => handleDragOver(e);
-                li.ondrop = (e) => handleDrop(e, node);
+                  li.ondragstart = (e) => handleDragStart(e, node);
+                  li.ondragover = (e) => handleDragOver(e);
+                  li.ondrop = (e) => handleDrop(e, node);
 
-                parent.appendChild(li);
+                  parent.appendChild(li);
 
-                if (node.children.length > 0) {
-                    const ul = document.createElement('ul');
-                    if (!node.expanded) ul.style.display = 'none';
-                    buildTree(node.children, ul);
-                    parent.appendChild(ul);
-                }
-            });
-        }
+                  if (node.children.length > 0) {
+                      const ul = document.createElement('ul');
+                      if (!node.expanded) ul.style.display = 'none';
+                      buildTree(node.children, ul);
+                      parent.appendChild(ul);
+                  }
+              });
+          }
             buildTree(nodes, tree);
         }
+        
+        
         
         function renderContent() {
             if (!selectedNode) return;
@@ -876,6 +877,15 @@
                 isResizing = false;
                 document.body.style.cursor = 'default';
             }
+        });
+        
+        let saveTimeout = null;
+
+        treeview.addEventListener('mouseleave', () => {
+            if (saveTimeout) clearTimeout(saveTimeout);
+            saveTimeout = setTimeout(() => {
+                idb.setItem('nodes', JSON.stringify(nodes));
+            }, 500); 
         });
         
         let draggedNode = null;
